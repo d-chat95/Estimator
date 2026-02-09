@@ -239,6 +239,41 @@ var Estimate = (function() {
   }
 
   /**
+   * Run fitOrSplit on a part and push resulting piece(s) into a parts array.
+   * Also pushes any warning into the warnings array.
+   * This centralises the oversize-check → split → warn pattern.
+   *
+   * @param {string} partName - Display name of the part (e.g. 'Wall (Dim1)')
+   * @param {number} qty - Quantity of the part
+   * @param {number} partW - Part width
+   * @param {number} partL - Part length
+   * @param {number} stockW - Stock sheet width
+   * @param {number} stockL - Stock sheet length
+   * @param {number} kerf - Kerf / seam gap
+   * @param {boolean} canSplit - Whether the material allows seam-splitting
+   * @param {string} category - Part category tag
+   * @param {string} materialName - Material name tag
+   * @param {Array} partsArr - Array to push part(s) into
+   * @param {Array} warningsArr - Array to push warnings into
+   */
+  function splitAndPush(partName, qty, partW, partL, stockW, stockL, kerf, canSplit, category, materialName, partsArr, warningsArr) {
+    var result = fitOrSplit(partW, partL, stockW, stockL, kerf, canSplit);
+
+    if (result.fits) {
+      partsArr.push({ name: partName, qty: qty, w: partW, l: partL, category: category, material: materialName });
+    } else if (result.noSplit) {
+      warningsArr.push(partName + ' ' + partW.toFixed(2) + '"×' + partL.toFixed(2) + '" ' + result.warning);
+      partsArr.push({ name: partName, qty: qty, w: partW, l: partL, category: category, material: materialName });
+    } else {
+      warningsArr.push(partName + ' ' + partW.toFixed(2) + '"×' + partL.toFixed(2) + '" ' + result.warning);
+      for (var i = 0; i < result.pieces.length; i++) {
+        var piece = result.pieces[i];
+        partsArr.push({ name: partName + piece.suffix, qty: qty, w: piece.w, l: piece.l, category: category, material: materialName });
+      }
+    }
+  }
+
+  /**
    * Calculate skin panels needed (handles oversized)
    * @param {number} skinW - Skin width
    * @param {number} skinL - Skin length
@@ -514,46 +549,18 @@ var Estimate = (function() {
     
     // Walls
     if (w2 > 0) {
-      parts.push({ 
-        name: 'Wall (Dim1)', 
-        qty: w2 * 2, 
-        w: o1, 
-        l: oh, 
-        category: 'wall', 
-        material: mat.name 
-      });
+      splitAndPush('Wall (Dim1)', w2 * 2, o1, oh, sheetW, sheetL, kerf, canSplit, 'wall', mat.name, parts, warnings);
     }
     if (w1 > 0) {
-      parts.push({ 
-        name: 'Wall (Dim2)', 
-        qty: w1 * 2, 
-        w: o2, 
-        l: oh, 
-        category: 'wall', 
-        material: mat.name 
-      });
+      splitAndPush('Wall (Dim2)', w1 * 2, o2, oh, sheetW, sheetL, kerf, canSplit, 'wall', mat.name, parts, warnings);
     }
-    
+
     // Ribs
     if (p1.ribs > 0) {
-      parts.push({ 
-        name: 'Rib (Dim2)', 
-        qty: p1.ribs, 
-        w: ih, 
-        l: i2, 
-        category: 'rib', 
-        material: mat.name 
-      });
+      splitAndPush('Rib (Dim2)', p1.ribs, ih, i2, sheetW, sheetL, kerf, canSplit, 'rib', mat.name, parts, warnings);
     }
     if (p2.ribs > 0) {
-      parts.push({ 
-        name: 'Rib (Dim1)', 
-        qty: p2.ribs, 
-        w: ih, 
-        l: i1, 
-        category: 'rib', 
-        material: mat.name 
-      });
+      splitAndPush('Rib (Dim1)', p2.ribs, ih, i1, sheetW, sheetL, kerf, canSplit, 'rib', mat.name, parts, warnings);
     }
     
     // Nest all parts (no more fullSheet filtering since we use strip splitting)
@@ -652,15 +659,16 @@ var Estimate = (function() {
     var hdpeParts = [];
     
     // MDO parts (bottom and walls - no top)
-    mdoParts.push({ name: 'Bottom', qty: 1, w: o1, l: o2, category: 'case', material: 'MDO' });
-    
+    var mdoCanSplit = allowsSeams(mat.name);
+    splitAndPush('Bottom', 1, o1, o2, mat.w, mat.l, kerf, mdoCanSplit, 'case', 'MDO', mdoParts, warnings);
+
     // Wall (Dim1) - full width walls, use wcDim1A + wcDim1B count
     var wallDim1Count = wcDim1A + wcDim1B;
-    mdoParts.push({ name: 'Wall (Dim1)', qty: wallDim1Count, w: o1, l: oh, category: 'wall', material: 'MDO' });
-    
+    splitAndPush('Wall (Dim1)', wallDim1Count, o1, oh, mat.w, mat.l, kerf, mdoCanSplit, 'wall', 'MDO', mdoParts, warnings);
+
     // Wall (Dim2) - interior width walls, use wcDim2A + wcDim2B count
     var wallDim2Count = wcDim2A + wcDim2B;
-    mdoParts.push({ name: 'Wall (Dim2)', qty: wallDim2Count, w: i2, l: oh, category: 'wall', material: 'MDO' });
+    splitAndPush('Wall (Dim2)', wallDim2Count, i2, oh, mat.w, mat.l, kerf, mdoCanSplit, 'wall', 'MDO', mdoParts, warnings);
     
     // Obo panel (top) - use strip splitting for oversized
     if (oboSplit.fits) {
@@ -718,8 +726,8 @@ var Estimate = (function() {
         }
         warnings.push('Chamber bottom ' + pw.toFixed(2) + '"×' + pl.toFixed(2) + '" ' + chamberBottomSplit.warning);
       }
-      hdpeParts.push({ name: 'Chamber Wall (W)', qty: 2, w: pw, l: chamberH, category: 'hdpe', material: 'HDPE' });
-      hdpeParts.push({ name: 'Chamber Wall (L)', qty: 2, w: pl - 1, l: chamberH, category: 'hdpe', material: 'HDPE' });
+      splitAndPush('Chamber Wall (W)', 2, pw, chamberH, hdpeSheet.w, hdpeSheet.l, kerf, true, 'hdpe', 'HDPE', hdpeParts, warnings);
+      splitAndPush('Chamber Wall (L)', 2, pl - 1, chamberH, hdpeSheet.w, hdpeSheet.l, kerf, true, 'hdpe', 'HDPE', hdpeParts, warnings);
     }
     
     // Multiply by quantity for nesting (no more fullSheet filtering)
