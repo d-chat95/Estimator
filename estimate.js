@@ -139,6 +139,60 @@ var Estimate = (function() {
   }
 
   /**
+   * Calculate a 2D grid layout when BOTH dimensions exceed stock.
+   * Tries both stock orientations, picks the one with fewest total pieces.
+   * Accounts for seam gaps in both directions.
+   *
+   * @param {number} partW - Part width
+   * @param {number} partL - Part length
+   * @param {number} stockW - Stock sheet width
+   * @param {number} stockL - Stock sheet length
+   * @param {number} seamGap - Gap between pieces (kerf)
+   * @returns {object|null} - { cols, rows, total, pieceW, pieceL } or null
+   */
+  function calcGridLayout(partW, partL, stockW, stockL, seamGap) {
+    var orientations = [
+      { sw: stockW, sl: stockL },
+      { sw: stockL, sl: stockW }
+    ];
+    var best = null;
+
+    for (var o = 0; o < orientations.length; o++) {
+      var sw = orientations[o].sw;
+      var sl = orientations[o].sl;
+
+      // Initial grid counts
+      var cols = Math.ceil(partW / sw);
+      var rows = Math.ceil(partL / sl);
+
+      // Refine cols for seam gaps (same iterative pattern as calcStripLayout)
+      for (var t1 = 0; t1 < 10; t1++) {
+        var pw = (partW - (cols - 1) * seamGap) / cols;
+        if (pw <= sw && pw > 0.5) break;
+        cols++;
+      }
+      // Refine rows for seam gaps
+      for (var t2 = 0; t2 < 10; t2++) {
+        var pl = (partL - (rows - 1) * seamGap) / rows;
+        if (pl <= sl && pl > 0.5) break;
+        rows++;
+      }
+
+      var pieceW = (partW - (cols - 1) * seamGap) / cols;
+      var pieceL = (partL - (rows - 1) * seamGap) / rows;
+
+      if (pieceW > 0.5 && pieceL > 0.5 && pieceW <= sw && pieceL <= sl) {
+        var total = cols * rows;
+        if (!best || total < best.total) {
+          best = { cols: cols, rows: rows, total: total, pieceW: pieceW, pieceL: pieceL };
+        }
+      }
+    }
+
+    return best;
+  }
+
+  /**
    * Fit a panel on stock, or split into strips if oversized
    * This is the UNIFIED helper for all panel types
    * 
@@ -202,7 +256,30 @@ var Estimate = (function() {
     }
     
     if (!best) {
-      // Can't split either way - return as-is (will be unplaced)
+      // Neither 1D strip option works — try 2D grid split
+      var grid = calcGridLayout(partW, partL, stockW, stockL, seamGap);
+      if (grid) {
+        var gridPieces = [];
+        var idx = 0;
+        for (var r = 0; r < grid.rows; r++) {
+          for (var c = 0; c < grid.cols; c++) {
+            idx++;
+            gridPieces.push({
+              w: grid.pieceW,
+              l: grid.pieceL,
+              suffix: ' [' + idx + '/' + grid.total + ']'
+            });
+          }
+        }
+        return {
+          fits: false,
+          pieces: gridPieces,
+          stripCount: grid.total,
+          warning: 'will be split into ' + grid.cols + '\u00d7' + grid.rows + ' grid (' + grid.total + ' pieces)'
+        };
+      }
+
+      // Truly can't split — return as-is (will be unplaced)
       return {
         fits: false,
         pieces: [{ w: partW, l: partL, suffix: '' }],
