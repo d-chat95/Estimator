@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>New Project - Material Calculator</title>
+  <style>
+    /* ========================================================================
+       BASE STYLES
+       ======================================================================== */
+    * { box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      margin: 0; padding: 20px;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      min-height: 100vh; color: #e2e8f0;
+    }
+    .container { max-width: 1400px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; color: #fff; font-size: 2.2em; text-align: center; font-weight: 700; }
+    .subtitle { color: #94a3b8; text-align: center; margin-bottom: 30px; font-size: 1.1em; }
+    
+    /* ========================================================================
+       CARDS & LAYOUT
+       ======================================================================== */
+    .card { 
+      background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(10px);
+      border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 16px;
+      padding: 24px; margin: 20px 0;
+    }
+    .card h2 { color: #fff; margin: 0 0 16px; font-size: 1.4em; }
+    .card h3 { color: #cbd5e1; margin: 20px 0 12px; font-size: 1.1em; }
+    .muted { color: #94a3b8; }
+    
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
+    .two-col { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+    @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+    
+    /* ========================================================================
+       FORM ELEMENTS
+       ======================================================================== */
+    label { display: block; font-weight: 600; margin-bottom: 6px; color: #cbd5e1; font-size: 0.9em; }
+    input, select { 
+      width: 100%; padding: 10px 12px; 
+      border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px;
+      font-size: 14px; background: rgba(15, 23, 42, 0.6); color: #e2e8f0;
+    }
+    input:focus, select:focus { outline: none; border-color: #3b82f6; }
+    select:disabled { opacity: 0.5; }
+    
+    button { 
+      padding: 10px 16px; border-radius: 8px; border: none;
+      background: #3b82f6; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    button:hover { background: #2563eb; }
+    button.secondary { background: rgba(148, 163, 184, 0.2); border: 1px solid rgba(148, 163, 184, 0.3); color: #e2e8f0; }
+    button.success { background: rgba(52, 211, 153, 0.2); border: 1px solid rgba(52, 211, 153, 0.4); color: #34d399; }
+    button.danger { background: rgba(248, 113, 113, 0.2); border: 1px solid rgba(248, 113, 113, 0.4); color: #f87171; padding: 6px 10px; font-size: 0.85em; }
+    
+    /* ========================================================================
+       TABLES
+       ======================================================================== */
+    table { width: 100%; border-collapse: collapse; background: rgba(15, 23, 42, 0.4); border-radius: 8px; overflow: hidden; margin: 12px 0; }
+    th, td { border-bottom: 1px solid rgba(148, 163, 184, 0.1); padding: 10px 12px; text-align: left; }
+    th { background: rgba(59, 130, 246, 0.1); color: #93c5fd; font-weight: 600; text-transform: uppercase; font-size: 0.75em; }
+    
+    .ok { color: #34d399; font-weight: bold; }
+    .bad { color: #f87171; font-weight: bold; }
+    
+    /* ========================================================================
+       MATERIAL LIBRARY
+       ======================================================================== */
+    .material-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+    .material-col { flex: 1; min-width: 120px; }
+    .material-card {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 14px; background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; margin-bottom: 8px;
+    }
+    .material-card .info { display: flex; flex-direction: column; gap: 2px; }
+    .material-card .name { font-weight: 600; color: #e2e8f0; font-size: 0.95em; }
+    .material-card .details { font-size: 0.8em; color: #94a3b8; }
+    .material-card .actions { display: flex; gap: 8px; align-items: center; }
+    .fav-btn { background: transparent; border: none; cursor: pointer; font-size: 1.1em; padding: 4px; opacity: 0.5; transition: opacity 0.2s; }
+    .fav-btn:hover { opacity: 1; }
+    .fav-btn.active { opacity: 1; }
+    
+    /* Stock sheet search in item cards */
+    .stock-search { 
+      width: 100%; padding: 6px 10px; margin-bottom: 6px;
+      border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 6px;
+      font-size: 12px; background: rgba(15, 23, 42, 0.4); color: #e2e8f0;
+    }
+    .stock-search:focus { outline: none; border-color: #3b82f6; }
+    .stock-search::placeholder { color: #64748b; }
+    
+    /* ========================================================================
+       ITEM CARDS
+       ======================================================================== */
+    .item-card {
+      background: rgba(51, 65, 85, 0.6); border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 12px; padding: 20px; margin: 12px 0;
+    }
+    .item-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+      flex-wrap: wrap; gap: 10px;
+    }
+    .item-header-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    
+    .item-type-badge {
+      padding: 4px 10px; border-radius: 12px; font-size: 0.7em; font-weight: 600; text-transform: uppercase;
+    }
+    .item-type-badge.sheet { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
+    .item-type-badge.platform { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+    .item-type-badge.pedestal { background: rgba(236, 72, 153, 0.2); color: #f472b6; }
+    .item-type-badge.case { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+    .item-type-badge.case-desiccant { background: rgba(52, 211, 153, 0.2); color: #34d399; }
+    
+    .item-name-input {
+      font-size: 1em; font-weight: 600; background: transparent;
+      border: 1px solid transparent; color: #fff; padding: 4px 8px; border-radius: 4px; width: 180px;
+    }
+    .item-name-input:hover, .item-name-input:focus { background: rgba(15, 23, 42, 0.6); border-color: rgba(148, 163, 184, 0.3); }
+    .item-material { font-size: 0.85em; color: #94a3b8; }
+    .item-material strong { color: #e2e8f0; }
+    
+    .results-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(148, 163, 184, 0.2); }
+    
+    .add-item-form {
+      background: rgba(52, 211, 153, 0.05); border: 2px dashed rgba(52, 211, 153, 0.3);
+      border-radius: 12px; padding: 20px; margin: 12px 0;
+    }
+    .add-item-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+    .add-item-col { flex: 1; min-width: 140px; }
+    
+    .combined-card { background: rgba(59, 130, 246, 0.1); border: 2px solid rgba(59, 130, 246, 0.3); }
+    
+    /* ========================================================================
+       VISUALIZATION
+       ======================================================================== */
+    .viz-details { margin-top: 16px; border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px; background: rgba(15, 23, 42, 0.3); }
+    .viz-toggle { cursor: pointer; padding: 12px 16px; font-weight: 600; color: #60a5fa; user-select: none; list-style: none; }
+    .viz-toggle::-webkit-details-marker { display: none; }
+    .viz-toggle::before { content: '▶ '; }
+    .viz-details[open] .viz-toggle::before { content: '▼ '; }
+    .viz-toggle:hover { background: rgba(59, 130, 246, 0.1); border-radius: 8px; }
+    .viz-content { padding: 16px; }
+    
+    .sheet-layout { margin: 12px 0; padding: 12px; background: rgba(15, 23, 42, 0.4); border-radius: 8px; }
+    .sheet-canvas-container { margin: 8px 0; overflow-x: auto; }
+    canvas { border: 2px solid rgba(148, 163, 184, 0.3); border-radius: 4px; background: #fff; display: block; }
+    
+    .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; padding: 10px; background: rgba(15, 23, 42, 0.4); border-radius: 6px; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.85em; }
+    .legend-swatch { width: 16px; height: 16px; border-radius: 3px; }
+    
+    .sheets-summary { padding: 12px 16px; background: rgba(52, 211, 153, 0.1); border-radius: 8px; margin-top: 12px; }
+    .sheets-summary .big { font-size: 1.5em; font-weight: 700; color: #34d399; }
+  
+/* ===========================
+   New Project Style Override
+   Soft editorial / paper UI
+   =========================== */
+:root{
+  --np-bg: rgba(250,249,245,1);
+  --np-panel: rgba(250,249,245,0.60);
+  --np-panel-strong: rgba(255,255,255,0.70);
+  --np-border: rgba(85,85,89,0.15);
+  --np-border-strong: rgba(85,85,89,0.25);
+  --np-text: rgba(20,20,22,0.90);
+  --np-muted: rgba(85,85,89,0.60);
+
+  --np-orange: rgba(255,126,46,0.90);
+  --np-orange-soft: rgba(255,126,46,0.15);
+  --np-burgundy: rgba(128,37,40,0.90);
+  --np-burgundy-soft: rgba(128,37,40,0.15);
+  --np-gray: rgba(85,85,89,0.85);
+  --np-gray-soft: rgba(85,85,89,0.12);
+}
+
+/* Page */
+body{
+  background: var(--np-bg) !important;
+  color: var(--np-text) !important;
+  font-family: Avenir, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !important;
+}
+
+/* Headings / labels (Gotham-first, with fallbacks) */
+h1, h2, h3, .results-section h2, th, label{
+  font-family: Gotham, Avenir, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !important;
+  letter-spacing: 0.2px;
+}
+
+/* Container spacing reads more editorial */
+.container{
+  max-width: 1200px;
+}
+
+/* Cards / panels */
+.card, .combined-card, .results-section{
+  background: var(--np-panel) !important;
+  border: 1px solid var(--np-border) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.04) !important;
+  backdrop-filter: blur(6px);
+}
+
+/* Secondary text */
+.muted, .subtitle{
+  color: var(--np-muted) !important;
+}
+
+/* Inputs */
+input, select, textarea{
+  background: var(--np-panel-strong) !important;
+  color: var(--np-text) !important;
+  border: 1px solid var(--np-border-strong) !important;
+  border-radius: 10px !important;
+  outline: none !important;
+}
+input:focus, select:focus, textarea:focus{
+  border-color: var(--np-orange) !important;
+  box-shadow: 0 0 0 3px var(--np-orange-soft) !important;
+}
+
+/* Buttons */
+button{
+  background: transparent !important;
+  color: var(--np-text) !important;
+  border: 1px solid var(--np-border-strong) !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+button:hover{
+  background: var(--np-gray-soft) !important;
+}
+
+/* Primary action buttons (your app uses .success for the main add-item button) */
+button.success{
+  background: var(--np-orange) !important;
+  color: white !important;
+  border-color: rgba(255,126,46,0.30) !important;
+}
+button.success:hover{
+  background: rgba(255,126,46,1) !important;
+}
+
+/* Make Calculate All Items the primary too */
+button[onclick*="calculateAll"]{
+  background: var(--np-orange) !important;
+  color: white !important;
+  border-color: rgba(255,126,46,0.30) !important;
+}
+button[onclick*="calculateAll"]:hover{
+  background: rgba(255,126,46,1) !important;
+}
+
+/* Tables */
+table{
+  background: transparent !important;
+}
+th{
+  color: var(--np-muted) !important;
+  border-bottom: 1px solid rgba(85,85,89,0.12) !important;
+}
+td{
+  border-bottom: 1px solid rgba(85,85,89,0.10) !important;
+  color: var(--np-text) !important;
+}
+
+/* Status badges */
+.ok{
+  color: var(--np-gray) !important;
+  background: var(--np-gray-soft) !important;
+  border: 1px solid rgba(85,85,89,0.12) !important;
+}
+.bad{
+  color: var(--np-burgundy) !important;
+  background: var(--np-burgundy-soft) !important;
+  border: 1px solid rgba(128,37,40,0.16) !important;
+}
+
+/* Layout canvases */
+.sheet-layout, .sheet-canvas-container{
+  background: rgba(255,255,255,0.55) !important;
+  border: 1px solid rgba(85,85,89,0.12) !important;
+  border-radius: 12px !important;
+}
+
+/* Totals highlight should be soft, not neon */
+.total-big{
+  color: var(--np-orange) !important;
+  background: var(--np-orange-soft) !important;
+  border-radius: 12px !important;
+  padding: 8px 12px !important;
+  display: inline-block;
+}
+
+
+/* --- NP Contrast Fixes (legibility on #faf9f5 + translucent panels) --- */
+:root{
+  --np-text-strong: rgba(20, 20, 22, 0.92);
+  --np-text: rgba(20, 20, 22, 0.78);
+  --np-muted: rgba(85, 85, 89, 0.55);
+}
+h1,h2,h3,h4,h5,h6{ color: var(--np-text-strong); }
+label{ color: rgba(20,20,22,0.82); font-weight: 500; }
+body,p,td,th,input,select,textarea{ color: var(--np-text); }
+.small,.muted,.help-text,.hint{ color: var(--np-muted); }
+input::placeholder,select::placeholder,textarea::placeholder{ color: rgba(85,85,89,0.50); }
+input:disabled,select:disabled,textarea:disabled{ color: rgba(85,85,89,0.65); background: rgba(255,255,255,0.40); }
+
+
+/* --- NP Header & Card Readability Fixes --- */
+body { background: #faf9f5 !important; color: rgba(20,20,22,0.78) !important; }
+
+/* Top title + subtitle */
+h1 { color: rgba(20,20,22,0.92) !important; }
+.subtitle { color: rgba(85,85,89,0.60) !important; }
+
+/* Primary cards/panels */
+.card{
+  background: rgba(250,249,245,0.60) !important;
+  border: 1px solid rgba(85,85,89,0.15) !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.04) !important;
+  backdrop-filter: blur(10px);
+}
+/* Section headers inside cards: make them readable + subtle outlined pill */
+.card > h2{
+  color: rgba(20,20,22,0.92) !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  margin: 0 0 16px 0 !important;
+  border-radius: 12px;
+  background: rgba(85,85,89,0.06) !important;
+  border: 1px solid rgba(85,85,89,0.12) !important;
+}
+.card h3{
+  color: rgba(20,20,22,0.86) !important;
+}
+
+/* Material/stock chips in Stock Sheets list */
+.material-card{
+  background: rgba(85,85,89,0.06) !important;
+  border: 1px solid rgba(85,85,89,0.14) !important;
+}
+.material-card .name{ color: rgba(20,20,22,0.90) !important; }
+.material-card .details{ color: rgba(85,85,89,0.60) !important; }
+
+/* Items header inside Items section (in case it inherits card rules elsewhere) */
+#itemsContainer h2, #itemsContainer h3, #itemsContainer .section-title{
+  color: rgba(20,20,22,0.92) !important;
+}
+
+/* Inputs + selects: keep light and readable */
+input, select, textarea{
+  background: rgba(255,255,255,0.70) !important;
+  border: 1px solid rgba(85,85,89,0.25) !important;
+  color: rgba(20,20,22,0.80) !important;
+}
+input:focus, select:focus, textarea:focus{
+  outline: none !important;
+  border-color: rgba(255,126,46,0.90) !important;
+  box-shadow: 0 0 0 3px rgba(255,126,46,0.15) !important;
+}
+
+/* Item cards (avoid dark theme leftovers) */
+.item-card{
+  background: rgba(250,249,245,0.55) !important;
+  border: 1px solid rgba(85,85,89,0.14) !important;
+}
+.item-header{ border-bottom: 1px solid rgba(85,85,89,0.12) !important; }
+.item-name-input{
+  color: rgba(20,20,22,0.86) !important;
+  background: rgba(255,255,255,0.35) !important;
+  border: 1px solid rgba(85,85,89,0.14) !important;
+}
+.item-name-input:hover, .item-name-input:focus{
+  background: rgba(255,255,255,0.60) !important;
+  border-color: rgba(255,126,46,0.45) !important;
+  box-shadow: 0 0 0 3px rgba(255,126,46,0.12) !important;
+}
+.item-material{ color: rgba(85,85,89,0.60) !important; }
+.item-material strong{ color: rgba(20,20,22,0.86) !important; }
+
+/* Stock search input in item cards */
+.stock-search{
+  background: rgba(255,255,255,0.70) !important;
+  border: 1px solid rgba(85,85,89,0.25) !important;
+  color: rgba(20,20,22,0.78) !important;
+}
+.stock-search:focus{
+  border-color: rgba(255,126,46,0.90) !important;
+  box-shadow: 0 0 0 3px rgba(255,126,46,0.15) !important;
+}
+
+
+/* --- NP Local Fonts (TTF/TTC) --- */
+@font-face {
+  font-family: "Gotham NP";
+  src: url("ufonts.com_gotham-book.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Gotham NP";
+  src: url("GOTHAM-MEDIUM.TTF") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Avenir NP";
+  src: url("Avenir.ttc") format("truetype-collection");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+/* If TTC weight selection isn't supported, browser will still load a default face. */
+
+:root {
+  --np-orange: rgb(255,126,46);
+  --np-burgundy: rgb(128,37,40);
+  --np-gray11: rgb(85,85,89);
+  --np-paper: #faf9f5;
+
+  /* Secondary colors */
+  --np-amber: rgb(255,182,0);   /* PMS 7549 C */
+  --np-magenta: rgb(171,0,78);  /* PMS 220 C */
+  --np-teal: rgb(30,152,138);   /* PMS 7473 C */
+
+  --np-amber-soft: rgba(255,182,0,0.16);
+  --np-magenta-soft: rgba(171,0,78,0.14);
+  --np-teal-soft: rgba(30,152,138,0.14);
+}
+
+body {
+  background: var(--np-paper) !important;
+  font-family: "Avenir NP", Avenir, Inter, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif !important;
+}
+
+h1,h2,h3,h4,h5,h6, .card > h2, .np-tool-title {
+  font-family: "Gotham NP", Gotham, "Avenir NP", Avenir, Inter, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif !important;
+  letter-spacing: 0.01em;
+}
+
+/* --- NP Header --- */
+.np-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 4px 8px 4px;
+}
+.np-logo {
+  height: 44px;
+  width: auto;
+  display: block;
+}
+.np-top-text {
+  text-align: right;
+  line-height: 1.1;
+}
+.np-tool-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: rgba(20,20,22,0.86);
+}
+.np-tool-subtitle {
+  font-size: 13px;
+  color: rgba(85,85,89,0.62);
+  margin-top: 4px;
+}
+.np-rule {
+  height: 1px;
+  background: rgba(85,85,89,0.18);
+  margin: 6px 0 18px 0;
+}
+
+/* --- Secondary colors used in Item type badges (subtle, not blocks) --- */
+.item-type-badge.sheet {
+  background: var(--np-magenta-soft) !important;
+  color: rgba(171,0,78,0.92) !important;
+}
+.item-type-badge.platform {
+  background: var(--np-teal-soft) !important;
+  color: rgba(30,152,138,0.92) !important;
+}
+.item-type-badge.pedestal {
+  background: var(--np-amber-soft) !important;
+  color: rgba(180,120,0,0.95) !important;
+}
+.item-type-badge.case {
+  background: rgba(128,37,40,0.12) !important;
+  color: rgba(128,37,40,0.92) !important;
+}
+.item-type-badge.case-desiccant {
+  background: rgba(255,126,46,0.14) !important;
+  color: rgba(255,126,46,0.92) !important;
+}
+
+/* Warnings / error emphasis (burgundy) */
+.warning, .error, .oversize, .unplaced {
+  color: rgba(128,37,40,0.95) !important;
+}
+.warning-box, .error-box {
+  background: rgba(128,37,40,0.08) !important;
+  border: 1px solid rgba(128,37,40,0.18) !important;
+}
+
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <header class="np-top">
+    <img class="np-logo" src="data:image/png;base64,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" alt="NEWPROJECT" />
+    <div class="np-top-text">
+      <div class="np-tool-title">Material Calculator</div>
+      <div class="np-tool-subtitle">Platforms, Cases &amp; Panels</div>
+    </div>
+  </header>
+  <div class="np-rule"></div>
+
+<!-- ======================================================================
+       SETTINGS & MATERIAL LIBRARY
+       ====================================================================== -->
+  <div class="two-col">
+    
+    <!-- Settings -->
+    <div class="card">
+      <h2>⚙️ Settings</h2>
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div><label>Max Clear Span (in)</label><input id="globalMaxSpan" type="number" step="0.01" value="24"></div>
+        <div><label>Rib Thickness (in)</label><input id="globalRibT" type="number" step="0.001" value="0.75"></div>
+        <div><label>Kerf / Gap (in)</label><input id="globalKerf" type="number" step="0.001" value="0.125"></div>
+        <div><label>Case Panel Inset (in)</label><input id="globalCaseInset" type="number" step="0.0625" value="0.25"></div>
+      </div>
+    </div>
+    
+    <!-- Stock Sheets -->
+    <div class="card" style="background: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.3);">
+      <h2>📦 Stock Sheets</h2>
+      <div class="material-row">
+        <div class="material-col">
+          <label>Type</label>
+          <select id="matType" onchange="App.updateMatOptions()">
+            <option value="">-- Select --</option>
+            <option value="wood">🪵 Wood</option>
+            <option value="plastic">🔲 Plastic</option>
+            <option value="metal">⚙️ Metal</option>
+            <option value="other">📦 Other</option>
+          </select>
+        </div>
+        <div class="material-col">
+          <label>Material</label>
+          <select id="matName" onchange="App.updateMatSizes()" disabled><option value="">--</option></select>
+        </div>
+        <div class="material-col">
+          <label>Size</label>
+          <select id="matSize" onchange="App.updateMatThickness()" disabled><option value="">--</option></select>
+        </div>
+        <div class="material-col">
+          <label>Thickness</label>
+          <select id="matThickness" disabled><option value="">--</option></select>
+        </div>
+        <div class="material-col" style="flex: 0 0 auto;">
+          <label>&nbsp;</label>
+          <button onclick="App.addMaterial()">+ Add</button>
+        </div>
+      </div>
+      <div id="materialList" style="margin-top: 14px;"></div>
+      <div id="noMaterialsMsg" class="muted" style="margin-top: 10px; padding: 16px; text-align: center; background: rgba(15, 23, 42, 0.4); border-radius: 8px;">
+        Add stock sheets to use in your items
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       ITEMS
+       ====================================================================== -->
+  <div class="card">
+    <h2>📦 Items</h2>
+    
+    <div id="itemsContainer"></div>
+    
+    <!-- Add Item Form - Simplified -->
+    <div class="add-item-form">
+      <div class="add-item-row">
+        <div class="add-item-col">
+          <label>Item Name (optional)</label>
+          <input type="text" id="newItemName" placeholder="e.g. Large Platform">
+        </div>
+        <div class="add-item-col" style="flex: 0 0 auto;">
+          <label>&nbsp;</label>
+          <button class="success" onclick="App.addItem()">+ Add Item</button>
+        </div>
+        <div class="add-item-col" style="flex: 0 0 auto; border-left: 1px solid rgba(148,163,184,0.2); padding-left: 16px; margin-left: 8px;">
+          <label>Import CSV</label>
+          <input type="file" id="csvUpload" accept=".csv,.txt" style="font-size: 12px;">
+        </div>
+      </div>
+      <p class="muted" style="margin:8px 0 0; font-size:0.8em;">
+        Tip: Add item first, then select Type and Material inside the card.<br>
+        CSV format: <code style="background:rgba(0,0,0,0.3);padding:2px 6px;border-radius:3px;">type,name,width,length,height,qty</code> (height required for platform/pedestal/case)
+      </p>
+    </div>
+    
+    <!-- Hidden elements for backwards compat -->
+    <select id="newItemType" style="display:none;"><option value=""></option></select>
+    <select id="newItemMaterial" style="display:none;"><option value=""></option></select>
+  </div>
+
+  <!-- ======================================================================
+       CALCULATE BUTTON
+       ====================================================================== -->
+  <div style="text-align: center; margin: 30px 0;">
+    <button style="padding: 14px 48px; font-size: 16px;" onclick="App.calculateAll()">Calculate All Items</button>
+  </div>
+
+  <!-- ======================================================================
+       COMBINED RESULTS
+       ====================================================================== -->
+  <div id="combinedResults"></div>
+</div>
+
+<!-- ========================================================================
+     JAVASCRIPT MODULES
+     Load order matters: materials → optimize → estimate → app
+     ======================================================================== -->
+<script src="materials.js"></script>
+<script src="optimize.js"></script>
+<script src="estimate.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
