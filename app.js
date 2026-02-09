@@ -1490,6 +1490,122 @@ var App = (function() {
   }
 
   // ============================================================================
+  // JSON JOB EXPORT / IMPORT
+  // ============================================================================
+
+  /**
+   * Export current job (settings + all items) as a downloadable JSON file
+   */
+  function exportJob() {
+    if (items.length === 0) {
+      alert('Nothing to export — add some items first.');
+      return;
+    }
+
+    var library = Materials.getLibrary();
+
+    // Snapshot each item's editable state
+    var exportItems = items.map(function(item) {
+      var mat = item.matIdx !== null ? Materials.getFromLibrary(item.matIdx) : null;
+      return {
+        type: item.type,
+        name: item.name,
+        matIdx: item.matIdx,
+        materialName: mat ? mat.name : null,
+        fields: item.fields || {}
+      };
+    });
+
+    var job = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      settings: getSettings(),
+      items: exportItems
+    };
+
+    var blob = new Blob([JSON.stringify(job, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'estimator-job.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Import a job from a JSON file (settings + items)
+   */
+  function handleJobImport(event) {
+    var file = event.target.files[0];
+    if (!file) return;
+
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        var job = JSON.parse(e.target.result);
+      } catch (err) {
+        alert('Invalid JSON file.');
+        return;
+      }
+
+      if (!job.version || !job.items || !Array.isArray(job.items)) {
+        alert('This file does not look like an estimator job.');
+        return;
+      }
+
+      // Restore settings
+      if (job.settings) {
+        var s = job.settings;
+        if (s.maxSpan && $('globalMaxSpan'))   $('globalMaxSpan').value = s.maxSpan;
+        if (s.ribThickness && $('globalRibT')) $('globalRibT').value = s.ribThickness;
+        if (s.kerf && $('globalKerf'))         $('globalKerf').value = s.kerf;
+        if (s.caseInset && $('globalCaseInset')) $('globalCaseInset').value = s.caseInset;
+      }
+
+      // Build a name→index lookup for the current material library
+      var library = Materials.getLibrary();
+      var nameToIdx = {};
+      for (var mi = 0; mi < library.length; mi++) {
+        nameToIdx[library[mi].name] = mi;
+      }
+
+      // Create items
+      var imported = 0;
+      for (var i = 0; i < job.items.length; i++) {
+        var ji = job.items[i];
+        itemCounter++;
+
+        // Try to resolve material: match by name first, fall back to index
+        var matIdx = null;
+        if (ji.materialName && nameToIdx[ji.materialName] !== undefined) {
+          matIdx = nameToIdx[ji.materialName];
+        } else if (ji.matIdx !== null && ji.matIdx !== undefined && library[ji.matIdx]) {
+          matIdx = ji.matIdx;
+        }
+
+        var newItem = {
+          id: 'item-' + itemCounter,
+          type: ji.type || '',
+          name: ji.name || ('Item ' + itemCounter),
+          matIdx: matIdx,
+          fields: ji.fields || {}
+        };
+        items.push(newItem);
+        imported++;
+      }
+
+      renderItems();
+      alert('Imported ' + imported + ' item(s) from job file.');
+    };
+
+    reader.readAsText(file);
+    // Reset input so the same file can be re-imported
+    event.target.value = '';
+  }
+
+  // ============================================================================
   // INITIALIZATION
   // ============================================================================
   
@@ -1502,6 +1618,12 @@ var App = (function() {
     var csvInput = $('csvUpload');
     if (csvInput) {
       csvInput.addEventListener('change', handleCSVUpload);
+    }
+
+    // Setup JSON job import handler
+    var jobInput = $('jobImport');
+    if (jobInput) {
+      jobInput.addEventListener('change', handleJobImport);
     }
   }
 
@@ -1526,6 +1648,8 @@ var App = (function() {
     saveItemField: saveItemField,
     calculateAll: calculateAll,
     handleCSVUpload: handleCSVUpload,
+    exportJob: exportJob,
+    handleJobImport: handleJobImport,
     updateCombinedHighlight: updateCombinedHighlight
   };
 
