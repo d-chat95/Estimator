@@ -1116,8 +1116,28 @@ var App = (function() {
       h += '<td>' + it.quantity + '</td>';
       h += '<td>' + (sheetCount ? sheetCount * it.quantity : '-') + '</td></tr>';
     }
+    // Sum of individual item sheet counts
+    var individualTotal = 0;
+    for (var it2 = 0; it2 < calc.length; it2++) {
+      var sc = 0;
+      if (calc[it2].materialNesting) {
+        sc = calc[it2].materialNesting.mdo.sheets.length +
+             calc[it2].materialNesting.hdpe.sheets.length +
+             calc[it2].materialNesting.obo.sheets.length;
+      } else if (calc[it2].nestedSheets) {
+        sc = calc[it2].nestedSheets.length;
+      }
+      individualTotal += (sc ? sc * calc[it2].quantity : 0);
+    }
+    var savings = individualTotal - totalSheets;
+    h += '<tr style="border-top:2px solid rgba(148,163,184,0.3);font-weight:bold;">';
+    h += '<td colspan="3" style="text-align:right;">Individual totals</td>';
+    h += '<td>' + individualTotal + ' sheets</td></tr>';
+    h += '<tr style="font-weight:bold;">';
+    h += '<td colspan="3" style="text-align:right;">Combined layout</td>';
+    h += '<td>' + totalSheets + ' sheets' + (savings > 0 ? ' <span style="color:#22c55e;">(saves ' + savings + ')</span>' : '') + '</td></tr>';
     h += '</table>';
-    
+
     // Totals section - show each material
     h += '<h3>Totals</h3><div class="sheets-summary" style="display:flex;gap:32px;flex-wrap:wrap;">';
     for (var ti = 0; ti < materialTotals.length; ti++) {

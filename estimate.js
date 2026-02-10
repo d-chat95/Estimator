@@ -54,15 +54,6 @@ var Estimate = (function() {
    * @returns {boolean}
    */
   function allowsSeams(materialName) {
-    if (!materialName) return true;
-    var name = materialName.toLowerCase();
-    // No seams for glass-like materials
-    if (name.indexOf('acrylic') >= 0 || 
-        name.indexOf('plexi') >= 0 || 
-        name.indexOf('optium') >= 0 ||
-        name.indexOf('glass') >= 0) {
-      return false;
-    }
     return true;
   }
 
